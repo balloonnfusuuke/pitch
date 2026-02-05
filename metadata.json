@@ -1,0 +1,5 @@
+{
+  "name": "PitchCommand",
+  "description": "A comprehensive baseball pitch count manager and scheduler with AI-powered workload analysis.",
+  "requestFramePermissions": []
+}
