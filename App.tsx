@@ -9,7 +9,8 @@ import AnalyticsPanel from './components/AnalyticsPanel';
 import ReportPanel from './components/ReportPanel';
 import GlobalSchedulePanel from './components/GlobalSchedulePanel';
 import GridSchedulePanel from './components/GridSchedulePanel';
-import { Users, ClipboardList, Calendar, Plus, X, FileText, List, Grid3X3 } from 'lucide-react';
+import SystemHelpPanel from './components/SystemHelpPanel';
+import { Users, ClipboardList, Calendar, Plus, X, FileText, List, Grid3X3, HelpCircle } from 'lucide-react';
 
 const App: React.FC = () => {
   const [pitchers, setPitchers] = useState<Pitcher[]>([]);
@@ -24,8 +25,10 @@ const App: React.FC = () => {
   // Detail Sub-tabs
   const [detailTab, setDetailTab] = useState<'log' | 'report' | 'schedule' | 'analysis'>('log');
   
-  // New Pitcher Modal State
+  // Modals
   const [showAddModal, setShowAddModal] = useState(false);
+  const [showSystemHelp, setShowSystemHelp] = useState(false);
+  
   const [newPitcherName, setNewPitcherName] = useState('');
   const [newPitcherNumber, setNewPitcherNumber] = useState('');
   const [newPitcherArm, setNewPitcherArm] = useState<'Right' | 'Left'>('Right');
@@ -180,14 +183,23 @@ const App: React.FC = () => {
             <div className="w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center font-bold">P</div>
             <h1 className="text-xl font-bold tracking-tight">PitchCommand</h1>
           </div>
-          {view === 'detail' && (
+          
+          <div className="flex items-center gap-4">
+             {view === 'detail' && (
+              <button 
+                onClick={() => setView('roster')} 
+                className="text-sm text-slate-300 hover:text-white flex items-center gap-1"
+              >
+                <List size={16} /> <span className="hidden sm:inline">一覧に戻る</span>
+              </button>
+            )}
             <button 
-              onClick={() => setView('roster')} 
-              className="text-sm text-slate-300 hover:text-white flex items-center gap-1"
+              onClick={() => setShowSystemHelp(true)}
+              className="text-sm bg-slate-800 hover:bg-slate-700 text-slate-200 px-3 py-1.5 rounded-lg flex items-center gap-1.5 transition-colors border border-slate-700"
             >
-              <List size={16} /> 一覧に戻る
+              <HelpCircle size={16} /> <span>使い方</span>
             </button>
-          )}
+          </div>
         </div>
       </header>
 
@@ -397,6 +409,11 @@ const App: React.FC = () => {
           </div>
         )}
       </main>
+
+      {/* System Help Modal */}
+      {showSystemHelp && (
+        <SystemHelpPanel onClose={() => setShowSystemHelp(false)} />
+      )}
 
       {/* Add Pitcher Modal */}
       {showAddModal && (
