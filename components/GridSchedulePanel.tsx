@@ -1,6 +1,6 @@
 import React, { useState, useRef } from 'react';
 import { Pitcher, PitchLog, ScheduledAppearance } from '../types';
-import { ChevronLeft, ChevronRight, Info, RotateCcw, Plus, Minus, Printer, FileInput, Calendar } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Info, RotateCcw, Plus, Minus, Printer, HelpCircle, X, ArrowDown } from 'lucide-react';
 
 interface GridSchedulePanelProps {
   pitchers: Pitcher[];
@@ -29,7 +29,7 @@ const GridSchedulePanel: React.FC<GridSchedulePanelProps> = ({
     return dates;
   });
 
-  const [inputMode, setInputMode] = useState<'plan' | 'result'>('plan');
+  const [showHelp, setShowHelp] = useState(false);
   const tableRef = useRef<HTMLDivElement>(null);
 
   const shiftDates = (days: number) => {
@@ -189,74 +189,59 @@ const GridSchedulePanel: React.FC<GridSchedulePanelProps> = ({
 
   // --- Input Handling ---
 
-  const getCellDisplayValue = (pitcher: Pitcher, dateKey: string) => {
-    const log = getLog(pitcher, dateKey);
+  const getPlanDisplayValue = (pitcher: Pitcher, dateKey: string) => {
     const schedule = getSchedule(pitcher, dateKey);
-
-    if (inputMode === 'result') {
-      return log ? log.count.toString() : '';
-    } else {
-      if (!schedule) return '';
-      if (schedule.minPitches !== undefined && schedule.maxPitches !== undefined) {
-        if (schedule.minPitches === schedule.maxPitches) return `${schedule.maxPitches}`;
-        return `${schedule.minPitches}-${schedule.maxPitches}`;
-      }
-      return schedule.plannedCount?.toString() || '';
+    if (!schedule) return '';
+    if (schedule.minPitches !== undefined && schedule.maxPitches !== undefined) {
+      if (schedule.minPitches === schedule.maxPitches) return `${schedule.maxPitches}`;
+      return `${schedule.minPitches}-${schedule.maxPitches}`;
     }
+    return schedule.plannedCount?.toString() || '';
   };
 
-  const getCellPlaceholder = (pitcher: Pitcher, dateKey: string) => {
-    if (inputMode === 'result') {
-      const schedule = getSchedule(pitcher, dateKey);
-      if (schedule) {
-        const max = schedule.maxPitches ?? schedule.plannedCount;
-        return `予:${max}`;
-      }
-      return '-';
-    }
-    return '-';
+  const getResultDisplayValue = (pitcher: Pitcher, dateKey: string) => {
+    const log = getLog(pitcher, dateKey);
+    return log ? log.count.toString() : '';
   };
 
-  const handleCellBlur = (e: React.FocusEvent<HTMLInputElement>, pitcherId: string, dateKey: string) => {
+  const handlePlanBlur = (e: React.FocusEvent<HTMLInputElement>, pitcherId: string, dateKey: string) => {
     const value = e.target.value.trim();
-    
-    if (inputMode === 'result') {
-      // Update Log
-      if (!value) {
-        onUpdateLog(pitcherId, dateKey, null); // Delete log
-        return;
-      }
-      const count = parseInt(value);
-      if (!isNaN(count)) {
-        onUpdateLog(pitcherId, dateKey, count);
-      }
+    if (!value) {
+      onRemoveSchedule(pitcherId, dateKey);
+      return;
+    }
+    // Parse input: "50" or "50-60"
+    let min = 0;
+    let max = 0;
+
+    if (value.includes('-')) {
+      const parts = value.split('-');
+      min = parseInt(parts[0]) || 0;
+      max = parseInt(parts[1]) || min;
+    } else if (value.includes('~')) {
+      const parts = value.split('~');
+      min = parseInt(parts[0]) || 0;
+      max = parseInt(parts[1]) || min;
     } else {
-      // Update Schedule
-      if (!value) {
-        onRemoveSchedule(pitcherId, dateKey);
-        return;
-      }
-      // Parse input: "50" or "50-60"
-      let min = 0;
-      let max = 0;
+      max = parseInt(value) || 0;
+      min = max;
+    }
 
-      if (value.includes('-')) {
-        const parts = value.split('-');
-        min = parseInt(parts[0]) || 0;
-        max = parseInt(parts[1]) || min;
-      } else if (value.includes('~')) {
-        const parts = value.split('~');
-        min = parseInt(parts[0]) || 0;
-        max = parseInt(parts[1]) || min;
-      } else {
-        max = parseInt(value) || 0;
-        min = max;
-      }
+    if (max > 0) {
+      if (min > max) { const temp = min; min = max; max = temp; }
+      onUpdateSchedule(pitcherId, dateKey, min, max);
+    }
+  };
 
-      if (max > 0) {
-        if (min > max) { const temp = min; min = max; max = temp; }
-        onUpdateSchedule(pitcherId, dateKey, min, max);
-      }
+  const handleResultBlur = (e: React.FocusEvent<HTMLInputElement>, pitcherId: string, dateKey: string) => {
+    const value = e.target.value.trim();
+    if (!value) {
+      onUpdateLog(pitcherId, dateKey, null); // Delete log
+      return;
+    }
+    const count = parseInt(value);
+    if (!isNaN(count)) {
+      onUpdateLog(pitcherId, dateKey, count);
     }
   };
 
@@ -299,17 +284,14 @@ const GridSchedulePanel: React.FC<GridSchedulePanelProps> = ({
           th, td {
             padding: 4px !important;
           }
-          /* Adjust input appearance for print */
           input {
             border: none !important;
             background: transparent !important;
             padding: 0 !important;
           }
-          /* Color adjustments for print readability */
-          .bg-slate-50 { background-color: #f8fafc !important; -webkit-print-color-adjust: exact; }
-          .bg-indigo-100 { background-color: #e0e7ff !important; -webkit-print-color-adjust: exact; }
-          .bg-blue-50 { background-color: #eff6ff !important; -webkit-print-color-adjust: exact; }
-          .bg-red-50 { background-color: #fef2f2 !important; -webkit-print-color-adjust: exact; }
+          .input-group {
+             border-bottom: 1px dashed #ccc;
+          }
         }
       `}</style>
 
@@ -336,23 +318,14 @@ const GridSchedulePanel: React.FC<GridSchedulePanelProps> = ({
            </button>
         </div>
 
-        {/* Mode Toggle & Print */}
-        <div className="flex items-center gap-4">
-          <div className="flex bg-slate-100 p-1 rounded-lg">
-            <button 
-              onClick={() => setInputMode('plan')}
-              className={`flex items-center gap-2 px-3 py-1.5 text-sm font-bold rounded-md transition-all ${inputMode === 'plan' ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
-            >
-              <Calendar size={16} /> 予定入力
-            </button>
-            <button 
-              onClick={() => setInputMode('result')}
-              className={`flex items-center gap-2 px-3 py-1.5 text-sm font-bold rounded-md transition-all ${inputMode === 'result' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
-            >
-              <FileInput size={16} /> 実績入力
-            </button>
-          </div>
-          
+        {/* Action Buttons */}
+        <div className="flex items-center gap-2">
+          <button 
+             onClick={() => setShowHelp(true)}
+             className="flex items-center gap-2 px-3 py-2 text-slate-600 hover:bg-slate-100 rounded-lg transition-colors text-sm font-medium"
+           >
+             <HelpCircle size={18} /> <span className="hidden sm:inline">使い方</span>
+          </button>
           <button 
             onClick={handlePrint}
             className="flex items-center gap-2 px-4 py-2 bg-slate-800 text-white rounded-lg hover:bg-slate-900 transition-colors shadow-sm font-bold text-sm"
@@ -361,15 +334,74 @@ const GridSchedulePanel: React.FC<GridSchedulePanelProps> = ({
           </button>
         </div>
       </div>
-      
-      <div className="flex items-center gap-2 text-xs text-slate-500 px-1 no-print">
-        <Info size={14} />
-        {inputMode === 'plan' ? (
-          <span>予定モード: 「50」や「30-50」と入力。合計は予定（最大値）で計算されます。</span>
-        ) : (
-          <span>実績モード: 実際の球数を入力。入力がある日は実績値が合計に反映されます。</span>
-        )}
-      </div>
+
+      {/* Help Modal */}
+      {showHelp && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4 no-print animate-fade-in" onClick={() => setShowHelp(false)}>
+          <div className="bg-white rounded-xl shadow-2xl max-w-lg w-full p-6" onClick={e => e.stopPropagation()}>
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="text-lg font-bold text-slate-800 flex items-center gap-2">
+                <HelpCircle className="text-blue-500" /> 予定表の使い方
+              </h3>
+              <button onClick={() => setShowHelp(false)} className="text-slate-400 hover:text-slate-600">
+                <X size={24} />
+              </button>
+            </div>
+            
+            <div className="space-y-6">
+              <div className="flex gap-4 items-start">
+                <div className="w-24 h-24 border border-slate-200 rounded flex flex-col shrink-0">
+                  <div className="h-1/2 border-b border-dashed border-slate-200 bg-yellow-50/50 flex items-center justify-center text-xs text-slate-500">
+                    予定: 50
+                  </div>
+                  <div className="h-1/2 bg-indigo-50 flex items-center justify-center font-bold text-indigo-700">
+                    実績: 55
+                  </div>
+                </div>
+                <div>
+                  <h4 className="font-bold text-slate-700 mb-1">セルの入力方法</h4>
+                  <ul className="text-sm text-slate-600 space-y-2">
+                    <li className="flex items-start gap-2">
+                      <span className="bg-slate-200 text-slate-700 px-1.5 rounded text-xs font-bold mt-0.5">上段</span>
+                      <span><strong>予定球数</strong>を入力します。「50」や「30-50」のように範囲指定も可能です。</span>
+                    </li>
+                    <li className="flex items-start gap-2">
+                      <span className="bg-indigo-100 text-indigo-700 px-1.5 rounded text-xs font-bold mt-0.5">下段</span>
+                      <span><strong>実績球数</strong>を入力します。実際に投げた球数を記録します。</span>
+                    </li>
+                  </ul>
+                </div>
+              </div>
+
+              <div className="bg-slate-50 p-4 rounded-lg text-sm text-slate-600 border border-slate-100">
+                <h4 className="font-bold text-slate-700 mb-2 flex items-center gap-2">
+                  <ArrowDown size={16} /> 合計計算のルール
+                </h4>
+                <p>
+                  各日・各選手の合計球数は、<strong>「実績」が入力されている場合は実績値</strong>を、
+                  まだ実績がない場合は<strong>「予定（最大値）」</strong>を使用して計算されます。
+                </p>
+              </div>
+
+              <div className="text-sm text-slate-500 border-t pt-4">
+                <p className="mb-1">💡 ヒント</p>
+                <ul className="list-disc pl-5 space-y-1">
+                  <li>日付列は「+」ボタンで翌日を追加、「-」ボタンで削除できます。</li>
+                  <li>ヘッダーの日付をクリックすると、カレンダーから日付を変更できます。</li>
+                  <li>「印刷」ボタンを押すと、A4用紙（横向き）に合わせたレイアウトで印刷されます。</li>
+                </ul>
+              </div>
+            </div>
+            
+            <button 
+              onClick={() => setShowHelp(false)}
+              className="mt-6 w-full py-2 bg-blue-600 text-white rounded-lg font-bold hover:bg-blue-700 transition-colors"
+            >
+              理解しました
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Grid */}
       <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-x-auto" ref={tableRef}>
@@ -421,33 +453,36 @@ const GridSchedulePanel: React.FC<GridSchedulePanelProps> = ({
                   {columnDates.map((dateKey, index) => {
                     const log = getLog(pitcher, dateKey);
                     const schedule = getSchedule(pitcher, dateKey);
-                    const hasLog = !!log;
-                    const hasSchedule = !!schedule;
                     
-                    // Cell Styling
-                    let bgClass = '';
-                    let textClass = 'text-slate-500';
-                    
-                    if (hasLog) {
-                      bgClass = 'bg-indigo-100 print:bg-slate-200';
-                      textClass = 'font-bold text-indigo-900';
-                    } else if (hasSchedule) {
-                      bgClass = 'bg-blue-50/30';
-                      textClass = 'text-blue-700 font-medium';
-                    }
-
                     return (
-                      <td key={`${index}-${dateKey}`} className={`p-1 border-b border-r border-slate-100 text-center relative ${bgClass}`}>
-                         <input 
-                           type="text" 
-                           defaultValue={getCellDisplayValue(pitcher, dateKey)}
-                           // Force re-render when mode changes
-                           key={`${dateKey}-${inputMode}-${hasLog ? log.count : 'n'}-${hasSchedule ? schedule?.id : 'n'}`} 
-                           placeholder={getCellPlaceholder(pitcher, dateKey)}
-                           onBlur={(e) => handleCellBlur(e, pitcher.id, dateKey)}
-                           onKeyDown={handleKeyDown}
-                           className={`w-full h-full p-2 text-center text-sm outline-none focus:bg-white focus:ring-2 focus:ring-blue-500 rounded transition-all bg-transparent placeholder:text-slate-300 ${textClass}`}
-                         />
+                      <td key={`${index}-${dateKey}`} className="p-0 border-b border-r border-slate-200 align-top h-16">
+                         <div className="flex flex-col h-full">
+                           {/* Plan Input (Top) */}
+                           <div className="h-1/2 w-full border-b border-dashed border-slate-100 input-group">
+                             <input 
+                               type="text" 
+                               defaultValue={getPlanDisplayValue(pitcher, dateKey)}
+                               key={`plan-${dateKey}-${schedule?.id || 'new'}`}
+                               placeholder="予"
+                               onBlur={(e) => handlePlanBlur(e, pitcher.id, dateKey)}
+                               onKeyDown={handleKeyDown}
+                               className={`w-full h-full text-center text-xs outline-none focus:bg-yellow-50 transition-all bg-transparent placeholder:text-slate-200 ${schedule ? 'text-slate-600' : 'text-slate-400'}`}
+                             />
+                           </div>
+                           
+                           {/* Result Input (Bottom) */}
+                           <div className={`h-1/2 w-full ${log ? 'bg-indigo-50/50 print:bg-transparent' : ''}`}>
+                             <input 
+                               type="text" 
+                               defaultValue={getResultDisplayValue(pitcher, dateKey)}
+                               key={`res-${dateKey}-${log?.count || 'new'}`}
+                               placeholder="実"
+                               onBlur={(e) => handleResultBlur(e, pitcher.id, dateKey)}
+                               onKeyDown={handleKeyDown}
+                               className={`w-full h-full text-center text-sm outline-none focus:bg-white focus:ring-1 focus:ring-blue-300 transition-all bg-transparent placeholder:text-slate-200 ${log ? 'font-bold text-indigo-700' : 'text-slate-500'}`}
+                             />
+                           </div>
+                         </div>
                       </td>
                     );
                   })}

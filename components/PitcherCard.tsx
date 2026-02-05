@@ -1,6 +1,6 @@
 import React from 'react';
-import { Pitcher, DEFAULT_REST_RULES } from '../types';
-import { Activity, Calendar, AlertCircle, CheckCircle } from 'lucide-react';
+import { Pitcher, ScheduledAppearance } from '../types';
+import { Activity, Calendar } from 'lucide-react';
 
 interface PitcherCardProps {
   pitcher: Pitcher;
@@ -8,7 +8,7 @@ interface PitcherCardProps {
 }
 
 const PitcherCard: React.FC<PitcherCardProps> = ({ pitcher, onSelect }) => {
-  // Calculate availability
+  // Get last log for "Last Pitch Count" display
   const getLastLog = () => {
     if (pitcher.logs.length === 0) return null;
     return pitcher.logs.reduce((prev, current) => 
@@ -18,34 +18,31 @@ const PitcherCard: React.FC<PitcherCardProps> = ({ pitcher, onSelect }) => {
 
   const lastLog = getLastLog();
   
-  const getRequiredRestDays = (count: number) => {
-    for (const rule of DEFAULT_REST_RULES) {
-      if (count <= rule.maxPitches) return rule.restDays;
-    }
-    return 4; // Max rest
+  // Calculate Next Scheduled Date
+  const getNextSchedule = () => {
+    const today = new Date();
+    today.setHours(0,0,0,0);
+
+    const futureSchedules = pitcher.schedule
+      .filter(s => {
+        const d = new Date(s.date);
+        d.setHours(0,0,0,0);
+        return d >= today;
+      })
+      .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+
+    return futureSchedules.length > 0 ? futureSchedules[0] : null;
   };
 
-  let availabilityStatus = { text: '登板可能', color: 'text-green-600', bg: 'bg-green-100', icon: CheckCircle };
-  let availableDateStr = '即日';
+  const nextSchedule = getNextSchedule();
 
-  if (lastLog) {
-    const lastDate = new Date(lastLog.date);
-    const restDays = getRequiredRestDays(lastLog.count);
-    
-    if (restDays > 0) {
-      const nextAvailableDate = new Date(lastDate);
-      nextAvailableDate.setDate(lastDate.getDate() + restDays + 1);
-      
-      const today = new Date();
-      today.setHours(0,0,0,0);
-      nextAvailableDate.setHours(0,0,0,0);
-
-      if (nextAvailableDate > today) {
-        availabilityStatus = { text: '要休息', color: 'text-red-600', bg: 'bg-red-100', icon: AlertCircle };
-        availableDateStr = nextAvailableDate.toLocaleDateString();
-      }
+  const formatPitches = (s: ScheduledAppearance) => {
+    if (s.minPitches !== undefined && s.maxPitches !== undefined) {
+      if (s.minPitches === s.maxPitches) return `${s.maxPitches}球`;
+      return `${s.minPitches}〜${s.maxPitches}球`;
     }
-  }
+    return `${s.plannedCount || 0}球`;
+  };
 
   return (
     <div 
@@ -57,10 +54,6 @@ const PitcherCard: React.FC<PitcherCardProps> = ({ pitcher, onSelect }) => {
           <h3 className="text-lg font-bold text-slate-800">{pitcher.name}</h3>
           <p className="text-sm text-slate-500">#{pitcher.number} • {pitcher.throwArm === 'Right' ? '右投' : '左投'}</p>
         </div>
-        <div className={`px-2 py-1 rounded-full text-xs font-medium flex items-center gap-1 ${availabilityStatus.bg} ${availabilityStatus.color}`}>
-          <availabilityStatus.icon size={12} />
-          {availabilityStatus.text}
-        </div>
       </div>
 
       <div className="space-y-2 text-sm">
@@ -69,8 +62,15 @@ const PitcherCard: React.FC<PitcherCardProps> = ({ pitcher, onSelect }) => {
           <span className="font-semibold">{lastLog ? `${lastLog.count}球` : '-'}</span>
         </div>
         <div className="flex items-center justify-between text-slate-600">
-          <span className="flex items-center gap-2"><Calendar size={14} /> 次回登板可能</span>
-          <span className="font-semibold">{availableDateStr}</span>
+          <span className="flex items-center gap-2"><Calendar size={14} /> 次回登板予定日</span>
+          <span className="font-semibold">
+            {nextSchedule ? (
+              <span className="flex items-center gap-1">
+                 {new Date(nextSchedule.date).toLocaleDateString(undefined, {month:'numeric', day:'numeric'})}
+                 <span className="text-xs text-slate-400">({formatPitches(nextSchedule)})</span>
+              </span>
+            ) : '未定'}
+          </span>
         </div>
       </div>
     </div>

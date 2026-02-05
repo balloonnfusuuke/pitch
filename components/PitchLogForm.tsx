@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Pitcher, PitchLog, DEFAULT_REST_RULES } from '../types';
+import { Pitcher, PitchLog } from '../types';
 import { Save } from 'lucide-react';
 
 interface PitchLogFormProps {
@@ -13,15 +13,6 @@ const PitchLogForm: React.FC<PitchLogFormProps> = ({ pitcher, onSave, onCancel }
   const [count, setCount] = useState<number>(0);
   const [type, setType] = useState<'game' | 'bullpen'>('game');
   const [notes, setNotes] = useState('');
-
-  const calculateRest = (pitchCount: number) => {
-    for (const rule of DEFAULT_REST_RULES) {
-      if (pitchCount <= rule.maxPitches) return rule.restDays;
-    }
-    return 4;
-  };
-
-  const restDays = calculateRest(count);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -74,10 +65,6 @@ const PitchLogForm: React.FC<PitchLogFormProps> = ({ pitcher, onSave, onCancel }
                <option value="bullpen">ブルペン/練習</option>
              </select>
           </div>
-        </div>
-
-        <div className="bg-blue-50 p-3 rounded-lg border border-blue-100">
-          <p className="text-sm text-blue-800 font-semibold">推定休息日: {restDays}日</p>
         </div>
 
         <div>
