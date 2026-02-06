@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { createRoot } from 'react-dom/client';
 import { Pitcher, PitchLog, ScheduledAppearance } from './types';
 import { loadPitchers, savePitchers } from './services/storageService';
+import { generateSampleData } from './services/sampleDataService';
 import PitcherCard from './components/PitcherCard';
 import PitchLogForm from './components/PitchLogForm';
 import SchedulePlanner from './components/SchedulePlanner';
@@ -10,6 +11,7 @@ import ReportPanel from './components/ReportPanel';
 import GlobalSchedulePanel from './components/GlobalSchedulePanel';
 import GridSchedulePanel from './components/GridSchedulePanel';
 import SystemHelpPanel from './components/SystemHelpPanel';
+import TutorialOverlay, { TutorialStep } from './components/TutorialOverlay';
 import { Users, ClipboardList, Calendar, Plus, X, FileText, List, Grid3X3, HelpCircle } from 'lucide-react';
 
 const App: React.FC = () => {
@@ -29,6 +31,10 @@ const App: React.FC = () => {
   const [showAddModal, setShowAddModal] = useState(false);
   const [showSystemHelp, setShowSystemHelp] = useState(false);
   
+  // Tutorial State
+  const [tutorialActive, setTutorialActive] = useState(false);
+  const [tutorialStepIndex, setTutorialStepIndex] = useState(0);
+
   const [newPitcherName, setNewPitcherName] = useState('');
   const [newPitcherNumber, setNewPitcherNumber] = useState('');
   const [newPitcherArm, setNewPitcherArm] = useState<'Right' | 'Left'>('Right');
@@ -58,6 +64,12 @@ const App: React.FC = () => {
     setNewPitcherName('');
     setNewPitcherNumber('');
     setShowAddModal(false);
+  };
+
+  const handleDeletePitcher = (pitcherId: string) => {
+    const updated = pitchers.filter(p => p.id !== pitcherId);
+    setPitchers(updated);
+    savePitchers(updated);
   };
 
   const handleSelectPitcher = (pitcher: Pitcher) => {
@@ -174,12 +186,170 @@ const App: React.FC = () => {
     savePitchers(updatedPitchers);
   };
 
+  // --- Tutorial Logic ---
+  const startTutorial = () => {
+    // 1. Load Sample Data
+    const samples = generateSampleData();
+    setPitchers(samples);
+    savePitchers(samples);
+
+    // 2. Reset View
+    setView('roster');
+    setRosterTab('list');
+    setSelectedPitcher(null);
+    setShowSystemHelp(false);
+
+    // 3. Start
+    setTutorialStepIndex(0);
+    setTutorialActive(true);
+  };
+
+  const TUTORIAL_STEPS: TutorialStep[] = [
+    {
+      targetId: 'header-title',
+      title: 'ようこそ PitchCommand へ',
+      content: 'チュートリアルを開始します。サンプルデータを読み込みました。このシステムは、投手のコンディション管理、スケジュール調整、そしてAI分析を一元管理できるプロフェッショナルツールです。',
+      position: 'bottom'
+    },
+    {
+      targetId: 'roster-tab-container',
+      title: '3つの管理ビュー',
+      content: 'トップ画面は用途に合わせて3つの表示を切り替えられます。「投手リスト」で個別管理、「予定リスト」で全体把握、「予定表(表形式)」で効率的な一括入力が可能です。',
+      position: 'bottom',
+      onEnter: () => {
+        setView('roster');
+        setRosterTab('list');
+      }
+    },
+    {
+      targetId: 'add-pitcher-btn',
+      title: '選手の登録',
+      content: '新しい投手はこのボタンから登録します。名前や背番号だけでなく、利き腕も設定できます。',
+      position: 'left',
+      onEnter: () => setRosterTab('list')
+    },
+    {
+      targetId: 'roster-tab-grid-btn',
+      title: '強力なグリッド入力',
+      content: '「予定表(表形式)」モードを見てみましょう。Excelのように直感的に操作でき、現場での素早いデータ入力に最適です。',
+      position: 'bottom',
+      onEnter: () => setRosterTab('grid')
+    },
+    {
+      targetId: 'grid-table-container',
+      title: '予定と実績のハイブリッド管理',
+      content: '各セルは2段構成です。上段(薄い色)に「予定球数」、下段(濃い色)に「実績球数」を入力します。実績が入力されると、自動的に計算基準が実績値に切り替わります。',
+      position: 'top',
+      onEnter: () => setRosterTab('grid')
+    },
+    {
+      targetId: 'first-pitcher-card',
+      title: '詳細データへのアクセス',
+      content: '個別の投手データを分析するため、リストに戻って選手カードをクリックします。',
+      position: 'right',
+      onEnter: () => {
+        setRosterTab('list');
+        setView('roster');
+      }
+    },
+    {
+      targetId: 'detail-tab-container',
+      title: '選手詳細メニュー',
+      content: 'ここから、記録の入力、レポート確認、スケジュール管理、AI分析へのアクセスを行います。',
+      position: 'bottom',
+      onEnter: () => {
+        const p1 = pitchers.find(p => p.id === 'sample-p1') || pitchers[0];
+        if (p1) {
+            setSelectedPitcher(p1);
+            setView('detail');
+            setDetailTab('log');
+        }
+      }
+    },
+    {
+      targetId: 'log-form-container',
+      title: '登板記録の入力',
+      content: '試合や練習後の記録はここで行います。「球数」だけでなく「タイプ（試合/練習）」や「メモ」を残すことで、後から詳細な振り返りが可能になります。',
+      position: 'right',
+      onEnter: () => setDetailTab('log')
+    },
+    {
+      targetId: 'report-tab-btn',
+      title: '月別レポート',
+      content: '蓄積されたデータはレポートタブで確認できます。月ごとの総投球数や、試合ごとの平均球数などが自動集計されます。',
+      position: 'bottom',
+      onEnter: () => setDetailTab('report')
+    },
+    {
+      targetId: 'schedule-tab-btn',
+      title: '詳細スケジュール調整',
+      content: 'ここでは、最小〜最大球数の範囲（例: 80〜100球）を指定して予定を組めます。先発ローテーションの管理などに役立ちます。',
+      position: 'bottom',
+      onEnter: () => setDetailTab('schedule')
+    },
+    {
+      targetId: 'analysis-tab-btn',
+      title: 'AI分析とACWR',
+      content: 'PitchCommandの最重要機能です。ACWR（Acute:Chronic Workload Ratio）理論に基づき、科学的な視点で怪我リスクを可視化します。',
+      position: 'bottom',
+      onEnter: () => setDetailTab('analysis')
+    },
+    {
+      targetId: 'acwr-status-card',
+      title: 'コンディション判定',
+      content: '「SAFE (安全)」「WARNING (注意)」「DANGER (危険)」の3段階でリスクを表示します。ACWRが1.5を超えると急激な負荷増加を意味し、怪我のリスクが高まります。',
+      position: 'top',
+      onEnter: () => setDetailTab('analysis')
+    },
+    {
+      targetId: 'what-if-simulator',
+      title: 'What-if シミュレーター',
+      content: '未来のリスクを予測します。来週の予定球数を入力してみてください。もしその通りに投げた場合、リスク判定がどう変化するかをリアルタイムで検証できます。',
+      position: 'top',
+      onEnter: () => setDetailTab('analysis')
+    },
+    {
+      targetId: 'ai-analysis-section',
+      title: 'AIコーチング',
+      content: '最後に、Gemini AIによる分析です。データに基づき、具体的な休息日の提案や、負荷調整のアドバイスを文章で生成します。',
+      position: 'top',
+      onEnter: () => {
+          // Scroll to bottom if needed
+          const el = document.getElementById('ai-analysis-section');
+          if(el) el.scrollIntoView({ behavior: 'smooth' });
+      }
+    },
+    {
+      targetId: 'header-roster-btn',
+      title: 'チュートリアル完了',
+      content: 'これでツアーは終了です。左上のボタンで一覧に戻り、チームのデータ管理を始めましょう！',
+      position: 'bottom'
+    }
+  ];
+
+  const handleNextStep = () => {
+    if (tutorialStepIndex < TUTORIAL_STEPS.length - 1) {
+      setTutorialStepIndex(prev => prev + 1);
+    } else {
+      setTutorialActive(false);
+    }
+  };
+
+  const handlePrevStep = () => {
+    if (tutorialStepIndex > 0) {
+      setTutorialStepIndex(prev => prev - 1);
+      // Re-trigger onEnter logic if needed to ensure correct view state
+      const prevStep = TUTORIAL_STEPS[tutorialStepIndex - 1];
+      if (prevStep.onEnter) prevStep.onEnter();
+    }
+  };
+
   return (
     <div className="min-h-screen pb-12">
       {/* Header */}
       <header className="bg-slate-900 text-white p-4 sticky top-0 z-10 shadow-lg print:hidden">
         <div className="max-w-4xl mx-auto flex justify-between items-center">
-          <div className="flex items-center gap-2 cursor-pointer" onClick={() => setView('roster')}>
+          <div id="header-title" className="flex items-center gap-2 cursor-pointer" onClick={() => setView('roster')}>
             <div className="w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center font-bold">P</div>
             <h1 className="text-xl font-bold tracking-tight">PitchCommand</h1>
           </div>
@@ -187,6 +357,7 @@ const App: React.FC = () => {
           <div className="flex items-center gap-4">
              {view === 'detail' && (
               <button 
+                id="header-roster-btn"
                 onClick={() => setView('roster')} 
                 className="text-sm text-slate-300 hover:text-white flex items-center gap-1"
               >
@@ -208,7 +379,7 @@ const App: React.FC = () => {
           <>
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4 print:hidden">
                {/* Main Toggle Tabs */}
-               <div className="bg-slate-200 p-1 rounded-xl flex gap-1 shadow-inner overflow-x-auto max-w-full">
+               <div id="roster-tab-container" className="bg-slate-200 p-1 rounded-xl flex gap-1 shadow-inner overflow-x-auto max-w-full">
                  <button 
                    onClick={() => setRosterTab('list')}
                    className={`px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-2 transition-all whitespace-nowrap ${
@@ -230,6 +401,7 @@ const App: React.FC = () => {
                    <List size={16} /> 予定リスト
                  </button>
                  <button 
+                   id="roster-tab-grid-btn"
                    onClick={() => setRosterTab('grid')}
                    className={`px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-2 transition-all whitespace-nowrap ${
                      rosterTab === 'grid' 
@@ -244,6 +416,7 @@ const App: React.FC = () => {
                {/* Action Button (Only show on list view) */}
                {rosterTab === 'list' && (
                  <button 
+                  id="add-pitcher-btn"
                   onClick={() => setShowAddModal(true)}
                   className="bg-blue-600 text-white px-4 py-2 rounded-lg flex items-center gap-2 hover:bg-blue-700 shadow-sm transition-colors text-sm font-bold ml-auto sm:ml-0"
                 >
@@ -262,8 +435,14 @@ const App: React.FC = () => {
                     </button>
                   </div>
                 )}
-                {pitchers.map(p => (
-                  <PitcherCard key={p.id} pitcher={p} onSelect={handleSelectPitcher} />
+                {pitchers.map((p, index) => (
+                  <div key={p.id} id={index === 0 ? "first-pitcher-card" : undefined}>
+                    <PitcherCard 
+                        pitcher={p} 
+                        onSelect={handleSelectPitcher}
+                        onDelete={handleDeletePitcher}
+                    />
+                  </div>
                 ))}
               </div>
             )}
@@ -293,7 +472,7 @@ const App: React.FC = () => {
              </div>
 
              {/* Tab Navigation */}
-             <div className="flex border-b border-slate-200 mb-6 overflow-x-auto">
+             <div id="detail-tab-container" className="flex border-b border-slate-200 mb-6 overflow-x-auto">
                <button 
                  onClick={() => setDetailTab('log')}
                  className={`px-4 py-3 text-sm font-medium flex items-center gap-2 whitespace-nowrap border-b-2 transition-colors ${
@@ -303,6 +482,7 @@ const App: React.FC = () => {
                  <ClipboardList size={18} /> 記録入力
                </button>
                <button 
+                 id="report-tab-btn"
                  onClick={() => setDetailTab('report')}
                  className={`px-4 py-3 text-sm font-medium flex items-center gap-2 whitespace-nowrap border-b-2 transition-colors ${
                    detailTab === 'report' ? 'border-blue-600 text-blue-600' : 'border-transparent text-slate-500 hover:text-slate-700'
@@ -311,6 +491,7 @@ const App: React.FC = () => {
                  <FileText size={18} /> レポート
                </button>
                <button 
+                 id="schedule-tab-btn"
                  onClick={() => setDetailTab('schedule')}
                  className={`px-4 py-3 text-sm font-medium flex items-center gap-2 whitespace-nowrap border-b-2 transition-colors ${
                    detailTab === 'schedule' ? 'border-blue-600 text-blue-600' : 'border-transparent text-slate-500 hover:text-slate-700'
@@ -319,6 +500,7 @@ const App: React.FC = () => {
                  <Calendar size={18} /> 登板予定
                </button>
                <button 
+                 id="analysis-tab-btn"
                  onClick={() => setDetailTab('analysis')}
                  className={`px-4 py-3 text-sm font-medium flex items-center gap-2 whitespace-nowrap border-b-2 transition-colors ${
                    detailTab === 'analysis' ? 'border-blue-600 text-blue-600' : 'border-transparent text-slate-500 hover:text-slate-700'
@@ -403,16 +585,33 @@ const App: React.FC = () => {
                )}
 
                {detailTab === 'analysis' && (
-                 <AnalyticsPanel pitcher={selectedPitcher} />
+                 <div id="analysis-panel-wrapper">
+                    <AnalyticsPanel pitcher={selectedPitcher} />
+                 </div>
                )}
              </div>
           </div>
         )}
       </main>
 
+      {/* Tutorial Overlay */}
+      {tutorialActive && (
+        <TutorialOverlay 
+            step={TUTORIAL_STEPS[tutorialStepIndex]}
+            currentStepIndex={tutorialStepIndex}
+            totalSteps={TUTORIAL_STEPS.length}
+            onNext={handleNextStep}
+            onPrev={handlePrevStep}
+            onClose={() => setTutorialActive(false)}
+        />
+      )}
+
       {/* System Help Modal */}
       {showSystemHelp && (
-        <SystemHelpPanel onClose={() => setShowSystemHelp(false)} />
+        <SystemHelpPanel 
+            onClose={() => setShowSystemHelp(false)} 
+            onStartTutorial={startTutorial}
+        />
       )}
 
       {/* Add Pitcher Modal */}

@@ -1,11 +1,12 @@
 import React from 'react';
-import { X, Users, Calendar, Grid3X3, ClipboardList, Sparkles, FileText, Activity } from 'lucide-react';
+import { X, Users, Calendar, Grid3X3, ClipboardList, Sparkles, FileText, Activity, PlayCircle } from 'lucide-react';
 
 interface SystemHelpPanelProps {
   onClose: () => void;
+  onStartTutorial: () => void;
 }
 
-const SystemHelpPanel: React.FC<SystemHelpPanelProps> = ({ onClose }) => {
+const SystemHelpPanel: React.FC<SystemHelpPanelProps> = ({ onClose, onStartTutorial }) => {
   return (
     <div className="fixed inset-0 bg-black/60 z-[100] flex items-center justify-center p-4 animate-fade-in backdrop-blur-sm">
       <div className="bg-white rounded-xl shadow-2xl w-full max-w-4xl h-[90vh] flex flex-col overflow-hidden">
@@ -26,6 +27,26 @@ const SystemHelpPanel: React.FC<SystemHelpPanelProps> = ({ onClose }) => {
         {/* Content */}
         <div className="flex-1 overflow-y-auto p-6 md:p-8 space-y-12">
           
+          {/* Welcome / Action Area */}
+          <section className="bg-gradient-to-r from-blue-600 to-indigo-600 p-8 rounded-2xl text-white shadow-lg relative overflow-hidden">
+             <div className="relative z-10">
+               <h3 className="text-2xl font-bold mb-2">インタラクティブ・チュートリアル</h3>
+               <p className="text-blue-100 mb-6 max-w-xl">
+                 サンプルデータを自動で読み込み、実際の画面操作をハイライト付きで体験できるガイドツアーです。初めての方はこちらからどうぞ。
+               </p>
+               <button 
+                 onClick={onStartTutorial}
+                 className="bg-white text-blue-600 px-6 py-3 rounded-xl font-bold flex items-center gap-2 hover:bg-blue-50 transition-all shadow-md transform hover:scale-105 ring-4 ring-white/30"
+               >
+                 <PlayCircle size={20} />
+                 デモデータでツアーを開始
+               </button>
+             </div>
+             {/* Decorative circles */}
+             <div className="absolute -right-10 -bottom-20 w-64 h-64 bg-white/10 rounded-full blur-3xl"></div>
+             <div className="absolute top-10 right-20 w-32 h-32 bg-indigo-400/20 rounded-full blur-2xl"></div>
+          </section>
+
           {/* Section 1: Overview */}
           <section>
             <h3 className="text-2xl font-bold text-slate-900 mb-4 border-b border-slate-200 pb-2">
@@ -133,9 +154,18 @@ const SystemHelpPanel: React.FC<SystemHelpPanelProps> = ({ onClose }) => {
                 </div>
                 <div>
                   <h4 className="font-bold text-slate-800">分析・コーチング (AI)</h4>
-                  <p className="text-sm text-slate-600 mt-1">
-                    直近の投球履歴と今後の予定をAIが分析し、過度な連投になっていないか、休息は十分かなどのアドバイスを提供します。
-                  </p>
+                  <div className="text-sm text-slate-600 mt-1 space-y-2">
+                    <p>
+                      <strong>ACWR (怪我リスク指標):</strong> 直近の負荷(Acute)と長期間の負荷(Chronic)のバランスを分析し、故障リスクを可視化します。
+                    </p>
+                    <p>
+                      <strong>負荷予測シミュレーター (What-if):</strong> 
+                      「もし土曜日に80球投げたら？」といった仮定の数値を入力することで、ACWRやリスク判定がどう変化するかをリアルタイムで検証できます。実際の予定を変更せずにテスト可能です。
+                    </p>
+                    <p>
+                      さらに、Gemini AIがデータに基づいた具体的なコンディション管理アドバイスを提供します。
+                    </p>
+                  </div>
                 </div>
               </div>
             </div>

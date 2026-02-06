@@ -1,13 +1,14 @@
 import React from 'react';
 import { Pitcher, ScheduledAppearance } from '../types';
-import { Activity, Calendar } from 'lucide-react';
+import { Activity, Calendar, Trash2 } from 'lucide-react';
 
 interface PitcherCardProps {
   pitcher: Pitcher;
   onSelect: (pitcher: Pitcher) => void;
+  onDelete: (pitcherId: string) => void;
 }
 
-const PitcherCard: React.FC<PitcherCardProps> = ({ pitcher, onSelect }) => {
+const PitcherCard: React.FC<PitcherCardProps> = ({ pitcher, onSelect, onDelete }) => {
   // Get last log for "Last Pitch Count" display
   const getLastLog = () => {
     if (pitcher.logs.length === 0) return null;
@@ -44,16 +45,30 @@ const PitcherCard: React.FC<PitcherCardProps> = ({ pitcher, onSelect }) => {
     return `${s.plannedCount || 0}球`;
   };
 
+  const handleDelete = (e: React.MouseEvent) => {
+    e.stopPropagation(); // Prevent card selection
+    if (window.confirm(`${pitcher.name} を削除してもよろしいですか？\nこの操作は取り消せません。`)) {
+      onDelete(pitcher.id);
+    }
+  };
+
   return (
     <div 
       onClick={() => onSelect(pitcher)}
-      className="bg-white rounded-xl shadow-sm border border-slate-200 p-4 cursor-pointer hover:shadow-md transition-shadow"
+      className="bg-white rounded-xl shadow-sm border border-slate-200 p-4 cursor-pointer hover:shadow-md transition-shadow group relative"
     >
       <div className="flex justify-between items-start mb-3">
         <div>
           <h3 className="text-lg font-bold text-slate-800">{pitcher.name}</h3>
           <p className="text-sm text-slate-500">#{pitcher.number} • {pitcher.throwArm === 'Right' ? '右投' : '左投'}</p>
         </div>
+        <button
+          onClick={handleDelete}
+          className="p-2 text-slate-300 hover:text-red-500 hover:bg-red-50 rounded-full transition-all opacity-0 group-hover:opacity-100"
+          title="削除"
+        >
+          <Trash2 size={18} />
+        </button>
       </div>
 
       <div className="space-y-2 text-sm">

@@ -28,7 +28,7 @@ const PitchLogForm: React.FC<PitchLogFormProps> = ({ pitcher, onSave, onCancel }
   };
 
   return (
-    <div className="bg-white p-6 rounded-xl shadow-md border border-slate-200">
+    <div id="log-form-container" className="bg-white p-6 rounded-xl shadow-md border border-slate-200">
       <h3 className="text-xl font-bold mb-4 text-slate-800">登板記録の入力: {pitcher.name}</h3>
       <form onSubmit={handleSubmit} className="space-y-4">
         <div>

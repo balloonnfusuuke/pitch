@@ -404,7 +404,7 @@ const GridSchedulePanel: React.FC<GridSchedulePanelProps> = ({
       )}
 
       {/* Grid */}
-      <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-x-auto" ref={tableRef}>
+      <div id="grid-table-container" className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-x-auto" ref={tableRef}>
         <table className="w-full border-collapse min-w-[800px]">
           <thead>
             <tr>
